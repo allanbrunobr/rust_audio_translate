@@ -4,8 +4,21 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-reqwest = { version = "0.12.5", features = ["json"] }
+reqwest = { version = "0.12.5", features = ["json", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
 base64 = "0.22.1"
-tokio = { version = "1.0.0", features = ["rt", "rt-multi-thread", "macros"] }
+aws-smithy-http = "0.60.9"
 serde_json = "1.0.120"
+aws-config = { version = "1.1.7", features = ["behavior-version-latest"] }
+aws-sdk-transcribe = "1.37.0"
+aws-sdk-s3 = "1.42.0"
+aws-types = "1.3.3"
+tokio = { version = "1", features = ["full"] }
+async-stream = "0.3.5"
+config = "0.14.0"
+tracing-subscriber = "0.3.18"
+hound = "3.4"
+aws-sdk-transcribestreaming = "1.36.0"
+bytes = "1.6.1"
+chrono = "0.4.38"
+
