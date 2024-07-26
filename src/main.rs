@@ -36,7 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Step 2: Send the transcription request to AWS Transcribe
     let media_file_uri = format!("s3://{}/{}", bucket, key);
     transcribe_audio(&transcribe_client, &media_file_uri, output_bucket, output_key).await?;
-    check_transcription_job_status(&transcribe_client, "my-first-14transcription-job").await?;
+    check_transcription_job_status(&transcribe_client, "my-first-15transcription-job").await?;
 
     Ok(())
 }
@@ -66,7 +66,7 @@ async fn transcribe_audio(client: &TranscribeClient, media_file_uri: &str, outpu
         .build();
     let response = client
         .start_transcription_job()
-        .transcription_job_name("my-first-14transcription-job")
+        .transcription_job_name("my-first-15transcription-job")
         .language_code(LanguageCode::EnUs)
         .media(media)
         .output_bucket_name(output_bucket)
@@ -77,34 +77,38 @@ async fn transcribe_audio(client: &TranscribeClient, media_file_uri: &str, outpu
 }
 
 async fn check_transcription_job_status(client: &TranscribeClient, job_name: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let response = client
-        .get_transcription_job()
-        .transcription_job_name(job_name)
-        .send()
-        .await?;
+    loop {
+        let response = client
+            .get_transcription_job()
+            .transcription_job_name(job_name)
+            .send()
+            .await?;
 
-    if let Some(job) = response.transcription_job() {
-        println!("Transcription job status: {:?}", job.transcription_job_status());
+        if let Some(job) = response.transcription_job() {
+            println!("Transcription job status: {:?}", job.transcription_job_status());
 
-        match job.transcription_job_status() {
-            Some(status) if *status == TranscriptionJobStatus::Completed => {
-                println!("Transcription job completed successfully!");
-                // Você pode acessar o resultado da transcrição aqui
-                if let Some(transcript_uri) = job.transcript().map(|t| t.transcript_file_uri()) {
-                    println!("Transcript URI: {:?}", transcript_uri);
+            match job.transcription_job_status() {
+                Some(status) if *status == TranscriptionJobStatus::Completed => {
+                    println!("Transcription job completed successfully!");
+
+                    if let Some(transcript_uri) = job.transcript().map(|t| t.transcript_file_uri()) {
+                        println!("Transcript URI: {:?}", transcript_uri);
+                    }
+                    break
+                }
+                Some(status) if *status == TranscriptionJobStatus::Failed => {
+                    println!("Transcription job failed.");
+                    break
+                }
+                _ => {
+                    println!("Transcription job still in progress...");
                 }
             }
-            Some(status) if *status == TranscriptionJobStatus::Failed => {
-                println!("Transcription job failed.");
-            }
-            _ => {
-                println!("Transcription job still in progress...");
-
-            }
+        } else {
+            println!("Transcription job not found.");
+            break
         }
-    } else {
-        println!("Transcription job not found.");
+        sleep(Duration::from_secs(10)).await;
     }
-
     Ok(())
 }
