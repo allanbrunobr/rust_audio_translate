@@ -21,4 +21,5 @@ hound = "3.4"
 aws-sdk-transcribestreaming = "1.36.0"
 bytes = "1.6.1"
 chrono = "0.4.38"
+rand = "0.8" # ou a versão mais recente
 
