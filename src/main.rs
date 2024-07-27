@@ -164,7 +164,6 @@ async fn download_file( client: &S3Client, bucket: String, key: String, output_p
 
 fn parse_s3_uri(uri: &str) -> Result<(String, String), Box<dyn std::error::Error>> {
     let uri = uri.trim_start_matches("s3://").trim_start_matches("https://s3.us-east-1.amazonaws.com/");
-    println!("URI: {}", uri);
     // Divida o URI em partes separadas por '/'
     let parts: Vec<&str> = uri.splitn(2, '/').collect();
 
