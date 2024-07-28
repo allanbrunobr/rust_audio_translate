@@ -7,21 +7,6 @@ use std::result::Result;
 use std::time::Duration;
 use tokio::time::sleep;
 
-/**
- * Transcribes an audio file using AWS Transcribe service.
- *
- * # Arguments
- *
- * * `client` - A reference to an initialized AWS Transcribe client.
- * * `media_file_uri` - The URI of the audio file to be transcribed.
- * * `output_bucket` - The name of the S3 bucket where the transcription result will be stored.
- * * `output_key` - The key under which the transcription result will be stored in the S3 bucket.
- * * `job_name` - A unique name for the transcription job.
- *
- * # Returns
- *
- * A `Result` containing an error type if the transcription job fails, or `()` if the job is successfully submitted.
- */
 pub async fn transcribe_audio(
     client: &TranscribeClient,
     media_file_uri: &str,
@@ -42,19 +27,6 @@ pub async fn transcribe_audio(
     Ok(())
 }
 
-/**
- * Checks the status of a transcription job and downloads the transcript file when the job is completed.
- *
- * # Arguments
- *
- * * `client` - A reference to an initialized AWS Transcribe client.
- * * `s3_client` - A reference to an initialized AWS S3 client.
- * * `job_name` - The name of the transcription job to be checked.
- *
- * # Returns
- *
- * A `Result` containing an error type if the transcription job fails, or `()` if the job is successfully submitted.
- */
 pub async fn check_transcription_job_status(
     client: &TranscribeClient,
     s3_client: &S3Client,
