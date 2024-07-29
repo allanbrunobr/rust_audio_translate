@@ -1,5 +1,6 @@
 extern crate rocket;
 
+mod comprehend;
 mod s3;
 mod transcribe;
 mod utils;
@@ -17,8 +18,6 @@ use rocket::serde::json::Json;
 use rocket::State;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use transcribe::{check_transcription_job_status, transcribe_audio};
-use utils::generate_random_job_name;
 
 struct AppState {
     s3_client: Arc<S3Client>,
@@ -47,21 +46,21 @@ async fn upload_audio<'r>(
             .await
             .map_err(|e| status::Custom(Status::InternalServerError, e.to_string()))?;
 
-        let state = state.lock().await;
+        let guard = state.lock().await;
         let bucket = "audio-wav-rust";
         let key = format!("audio_{}.wav", index);
 
         // Upload to S3
-        s3::upload_to_s3(&state.s3_client, bucket, &key, &file_path)
+        s3::upload_to_s3(&guard.s3_client, bucket, &key, &file_path)
             .await
             .map_err(|e| status::Custom(Status::InternalServerError, e.to_string()))?;
 
-        let random_job_name = generate_random_job_name();
+        let random_job_name = utils::generate_random_job_name();
         let media_file_uri = format!("s3://{}/{}", bucket, key);
 
         // Transcribe
-        transcribe_audio(
-            &state.transcribe_client,
+        transcribe::transcribe_audio(
+            &guard.transcribe_client,
             &media_file_uri,
             bucket,
             "my-output-files/",
@@ -70,9 +69,9 @@ async fn upload_audio<'r>(
         .await
         .map_err(|e| status::Custom(Status::InternalServerError, e.to_string()))?;
 
-        check_transcription_job_status(
-            &state.transcribe_client,
-            &state.s3_client,
+        transcribe::check_transcription_job_status(
+            &guard.transcribe_client,
+            &guard.s3_client,
             &random_job_name,
         )
         .await
@@ -80,25 +79,16 @@ async fn upload_audio<'r>(
 
         // Get transcription result
         let transcription_text = s3::get_transcription_result(
-            &state.s3_client,
+            &guard.s3_client,
             bucket,
             &format!("my-output-files/{}.json", random_job_name),
         )
         .await
         .map_err(|e| status::Custom(Status::InternalServerError, e.to_string()))?;
 
-        // Perform Sentiment Analysis
-        let sentiment_result = state
-            .comprehend_client
-            .detect_sentiment()
-            .text(&transcription_text)
-            .language_code(LanguageCode::En)
-            .send()
+        comprehend::perform_sentiment_analysis(guard, &transcription_text)
             .await
             .map_err(|e| status::Custom(Status::InternalServerError, e.to_string()))?;
-
-        println!("Sentimento detectado: {:?}", sentiment_result.sentiment);
-        println!("Pontuações: {:?}", sentiment_result.sentiment_score);
 
         file_urls.push(random_job_name);
     }
