@@ -5,6 +5,7 @@ mod transcribe;
 mod utils;
 
 use aws_config::meta::region::RegionProviderChain;
+use aws_sdk_comprehend::{types::LanguageCode, Client as ComprehendClient};
 use aws_sdk_s3::Client as S3Client;
 use aws_sdk_transcribe::Client as TranscribeClient;
 use rocket::form::Form;
@@ -22,6 +23,7 @@ use utils::generate_random_job_name;
 struct AppState {
     s3_client: Arc<S3Client>,
     transcribe_client: Arc<TranscribeClient>,
+    comprehend_client: Arc<ComprehendClient>,
 }
 
 #[derive(FromForm)]
@@ -76,6 +78,28 @@ async fn upload_audio<'r>(
         .await
         .map_err(|e| status::Custom(Status::InternalServerError, e.to_string()))?;
 
+        // Get transcription result
+        let transcription_text = s3::get_transcription_result(
+            &state.s3_client,
+            bucket,
+            &format!("my-output-files/{}.json", random_job_name),
+        )
+        .await
+        .map_err(|e| status::Custom(Status::InternalServerError, e.to_string()))?;
+
+        // Perform Sentiment Analysis
+        let sentiment_result = state
+            .comprehend_client
+            .detect_sentiment()
+            .text(&transcription_text)
+            .language_code(LanguageCode::En)
+            .send()
+            .await
+            .map_err(|e| status::Custom(Status::InternalServerError, e.to_string()))?;
+
+        println!("Sentimento detectado: {:?}", sentiment_result.sentiment);
+        println!("Pontuações: {:?}", sentiment_result.sentiment_score);
+
         file_urls.push(random_job_name);
     }
 
@@ -88,10 +112,12 @@ async fn rocket() -> _ {
     let shared_config = aws_config::from_env().region(region_provider).load().await;
     let s3_client = S3Client::new(&shared_config);
     let transcribe_client = TranscribeClient::new(&shared_config);
+    let comprehend_client = ComprehendClient::new(&shared_config);
 
     let state = Arc::new(Mutex::new(AppState {
         s3_client: Arc::new(s3_client),
         transcribe_client: Arc::new(transcribe_client),
+        comprehend_client: Arc::new(comprehend_client),
     }));
 
     rocket::build()
