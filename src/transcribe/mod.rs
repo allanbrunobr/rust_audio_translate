@@ -57,7 +57,7 @@ pub async fn check_transcription_job_status(
                         let (bucket, key) = parse_s3_uri(&transcript_uri)?;
                         println!("Bucket: {:?}", bucket);
                         println!("Key: {:?}", key);
-                        let output_path = format!("transcripts/{}.json", job_name);
+                        let output_path = format!("src/transcripts/{}.json", job_name);
 
                         download_file(s3_client, bucket, key, &output_path).await?;
                     }
