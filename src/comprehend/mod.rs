@@ -1,7 +1,5 @@
 use crate::AppState;
-use aws_sdk_comprehend::{types::LanguageCode, Client as ComprehendClient};
-use rocket::http::Status;
-use rocket::response::status;
+use aws_sdk_comprehend::types::LanguageCode;
 use tokio::sync::MutexGuard;
 
 #[derive(Debug)]
