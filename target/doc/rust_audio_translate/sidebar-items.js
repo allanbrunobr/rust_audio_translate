@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["analyze_medical_text","main","rocket","upload_audio"],"mod":["comprehend","s3","transcribe","utils"],"struct":["AppState","FileUpload"]};

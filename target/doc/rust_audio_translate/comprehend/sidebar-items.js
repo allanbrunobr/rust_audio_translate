@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ComprehendError"],"fn":["perform_sentiment_analysis"]};

@@ -7,6 +7,23 @@ use std::result::Result;
 use std::time::Duration;
 use tokio::time::sleep;
 
+/// Initiates an audio transcription job using Amazon Transcribe.
+///
+/// This function starts a transcription job for the specified audio file and configures
+/// the output location in an S3 bucket.
+///
+/// # Arguments
+///
+/// * `client` - A reference to the TranscribeClient used to start the transcription job.
+/// * `media_file_uri` - The URI of the audio file to be transcribed.
+/// * `output_bucket` - The name of the S3 bucket where the transcription output will be stored.
+/// * `output_key` - The key (path) within the S3 bucket where the transcription output will be saved.
+/// * `job_name` - A unique name for the transcription job.
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the transcription job is successfully initiated, otherwise returns
+/// an error wrapped in a `Box<dyn std::error::Error>`.
 pub async fn transcribe_audio(
     client: &TranscribeClient,
     media_file_uri: &str,
@@ -27,6 +44,20 @@ pub async fn transcribe_audio(
     Ok(())
 }
 
+/// Checks the status of a transcription job and downloads the transcript if completed.
+///
+/// This function continuously polls the status of a transcription job until it's either
+/// completed or failed. If completed successfully, it downloads the transcript file from S3.
+///
+/// # Arguments
+///
+/// * `client` - A reference to the TranscribeClient used to check the job status.
+/// * `s3_client` - A reference to the S3Client used to download the transcript file.
+/// * `job_name` - The name of the transcription job to check.
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the function completes without errors, otherwise returns an error wrapped in a `Box<dyn std::error::Error>`.
 pub async fn check_transcription_job_status(
     client: &TranscribeClient,
     s3_client: &S3Client,

@@ -15,8 +15,7 @@ use rocket::form::FromForm;
 use rocket::fs::TempFile;
 use rocket::http::Status;
 use rocket_cors::AllowedMethods;
-use rocket_cors::Method;
-use rocket_cors::{CorsOptions, Cors};
+use rocket_cors::CorsOptions;
 use rocket::response::status;
 use rocket::serde::json::Json;
 use rocket::State;
@@ -37,6 +36,25 @@ struct FileUpload<'r> {
     files: Vec<TempFile<'r>>,
 }
 
+/// Handles the upload and processing of audio files.
+///
+/// This function receives audio files through a form submission, uploads them to S3,
+/// transcribes the audio using AWS Transcribe, performs sentiment analysis on the
+/// transcription, and returns the job names for the processed files.
+///
+/// # Parameters
+///
+/// * `form` - A `Form<FileUpload<'r>>` containing the uploaded audio files.
+/// * `state` - A reference to the `State<Arc<Mutex<AppState>>>` containing shared
+///             application state, including AWS client instances.
+///
+/// # Returns
+///
+/// A `Result` containing either:
+/// - `Ok(status::Custom<Json<Vec<String>>>)` with a status code of 200 (OK) and a JSON
+///   array of job names for the processed files.
+/// - `Err(status::Custom<String>)` with a status code of 500 (Internal Server Error)
+///   and an error message if any step in the process fails.
 #[rocket::post("/upload", data = "<form>")]
 async fn upload_audio<'r>(
     form: Form<FileUpload<'r>>,
@@ -102,6 +120,26 @@ async fn upload_audio<'r>(
     Ok(status::Custom(Status::Ok, Json(file_urls)))
 }
 
+/// Analyzes medical text using AWS Comprehend Medical to detect entities.
+///
+/// This function takes a medical text as input, sends it to AWS Comprehend Medical
+/// for entity detection, and returns the detected entities or a message indicating
+/// that no entities were found.
+///
+/// # Parameters
+///
+/// * `text` - A `String` containing the medical text to be analyzed.
+/// * `state` - A reference to the `State` containing the shared `AppState`,
+///             which includes the AWS Comprehend Medical client.
+///
+/// # Returns
+///
+/// A `Result` containing either:
+/// - `Ok(status::Custom<String>)` with a status code of 200 (OK) and either:
+///   - A string of formatted entities, each on a new line, if entities were found.
+///   - The message "No entities found." if no entities were detected.
+/// - `Err(status::Custom<String>)` with a status code of 500 (Internal Server Error)
+///   and an error message if the analysis failed.
 #[rocket::post("/analyze_medical_text", data = "<text>")]
 async fn analyze_medical_text(
     text: String,
@@ -119,7 +157,7 @@ async fn analyze_medical_text(
 
         let entities = result.entities();
         let formatted_entities: Vec<String> = entities.iter().map(|entity| format!("{:?}", entity)).collect();
-        format!("{}", formatted_entities.join("\n"));
+
         if formatted_entities.is_empty() {
             Ok(status::Custom(Status::Ok, "No entities found.".to_string()))
         } else {
@@ -127,8 +165,22 @@ async fn analyze_medical_text(
         }
 }
 
+/// Launches a Rocket web server with the specified routes and middleware.
+///
+/// # Purpose
+/// This function initializes and configures a Rocket web server to handle audio file uploads,
+/// transcription, sentiment analysis, and medical text analysis. It sets up AWS SDK clients for
+/// S3, Transcribe, Comprehend, and Comprehend Medical services, and manages the application state
+/// using an Arc and Mutex. It also applies CORS (Cross-Origin Resource Sharing) configuration.
+///
+/// # Parameters
+/// None
+///
+/// # Return
+/// A Rocket instance, which can be used to start the server.
 #[rocket::launch]
 async fn rocket() -> _ {
+    // Set up AWS SDK clients with region provider and shared configuration
     let region_provider = RegionProviderChain::default_provider().or_else("us-west-2");
     let shared_config = aws_config::from_env().region(region_provider).load().await;
     let s3_client = S3Client::new(&shared_config);
@@ -136,6 +188,7 @@ async fn rocket() -> _ {
     let comprehend_client = ComprehendClient::new(&shared_config);
     let comprehend_client_medical = ComprehendClientMedical::new(&shared_config);
 
+    // Create a shared application state using Arc and Mutex
     let state = Arc::new(Mutex::new(AppState {
         s3_client: Arc::new(s3_client),
         transcribe_client: Arc::new(transcribe_client),
@@ -143,11 +196,13 @@ async fn rocket() -> _ {
         comprehend_client_medical: Arc::new(comprehend_client_medical),
     }));
 
-    let allowed_methods_list: AllowedMethods = ["Get", "Post", "Delete"]
+    // Configure CORS allowed methods
+    let allowed_methods_list: AllowedMethods = ["Get", "Post", "Put", "Delete"]
     .iter()
     .map(|s| FromStr::from_str(s).unwrap())
     .collect();
 
+    // Create CORS options and apply them
     let cors = CorsOptions {
         allowed_origins: rocket_cors::AllowedOrigins::All,
         allowed_methods: allowed_methods_list,
@@ -155,6 +210,7 @@ async fn rocket() -> _ {
         ..Default::default()
     }.to_cors().expect("Failed to create CORS");
     
+    // Build and configure the Rocket instance
     rocket::build()
         .attach(cors)
         .manage(state)
