@@ -1,3 +1,0 @@
-(function() {var implementors = {
-"rust_audio_translate":[["impl&lt;'r&gt; <a class=\"trait\" href=\"https://api.rocket.rs/v0.5/rocket/form/from_form/trait.FromForm.html\" title=\"trait rocket::form::from_form::FromForm\">FromForm</a>&lt;'r&gt; for <a class=\"struct\" href=\"rust_audio_translate/struct.FileUpload.html\" title=\"struct rust_audio_translate::FileUpload\">FileUpload</a>&lt;'r&gt;"]]
-};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

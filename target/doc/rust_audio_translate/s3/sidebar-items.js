@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["download_file","get_transcription_result","upload_to_s3"]};
